@@ -3,3 +3,24 @@
     overflow-y: scroll;
     text-align: left;
 }
+
+#r, #s, #p {
+    width: 170px;
+    height: 135px;
+    position: absolute;
+}
+
+#r {
+    top: 15px;
+    left: 100px;
+}
+
+#s {
+    top: 250px;
+    left: 20px;
+}
+
+#p {
+    top: 250px;
+    right: 20px;
+}

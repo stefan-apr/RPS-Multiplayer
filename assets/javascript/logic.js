@@ -3,40 +3,58 @@ $(document).ready(function() {
     var isPlayer1 = false;
     var isPlayer2 = false;
 
-    var dbKeys = ["chatlog", "player1", "player2"];
+    var dbKeys = ["chatlog", "game", "player1", "player2"];
 
     var dbRef = database.ref();
 
     dbRef.once("value", function(snapshot) {
         var items = snapshot.val();
+        console.log("Init");
         console.log(items);
 
-        if(items[dbKeys[1]].player1Joined === false) {
+        if(items[dbKeys[2]].player1Joined === false) {
             console.log("p1 join");
-            database.ref(dbKeys[1]).set({
-                player1Joined: true
+            database.ref(dbKeys[2]).set({
+                player1Joined: true,
+                player1Guess: ""
             });
             isPlayer1 = true;
-        } else if(items[dbKeys[2]].player2Joined === false) {
+            // How do I get this particular value????
+            console.log(database.ref("/player2/player2Joined"));
+            if(database.ref("/player2/player2Joined") === true) {
+                console.log("Game on");
+                database.ref("/game/gameState").set(true); 
+            }
+        } else if(items[dbKeys[3]].player2Joined === false) {
             console.log("p2 join");
-            database.ref(dbKeys[2]).set({
-                player2Joined: true
+            database.ref(dbKeys[3]).set({
+                player2Joined: true,
+                player2Guess: ""
             });
             isPlayer2 = true;
+            console.log(database.ref("/player1/player1Joined"));
+            if(database.ref("/player1/player1Joined") === true) {
+                console.log("Game on");
+                database.ref("/game/gameState").set(true); 
+            }
         } else {
             console.log("The lobby is full right now. Try again later.");
         }
 
         if(isPlayer1) {
-            var p1Ref = database.ref(dbKeys[1]);
+            var p1Ref = database.ref(dbKeys[2]);
             p1Ref.onDisconnect().set({
-                player1Joined: false
+                player1Joined: false,
+                player1Guess: "",
             });
+            database.ref("/game/gameState").onDisconnect().set(false);
         } else if(isPlayer2) {
-            var p2Ref = database.ref(dbKeys[2]);
+            var p2Ref = database.ref(dbKeys[3]);
             p2Ref.onDisconnect().set({
-                player2Joined: false
+                player2Joined: false,
+                player2Guess: "",
             });
+            database.ref("/game/gameState").onDisconnect().set(false);
         }
         // If any errors are experienced, log them to console.
     }, function(errorObject) {
@@ -49,7 +67,7 @@ $(document).ready(function() {
     var p2Points = 0;
     var ties = 0;
 
-    // User defined class node 
+    // User defined class node (for Linked List)
     class Node { 
         // constructor 
         constructor(element) 
@@ -72,6 +90,65 @@ $(document).ready(function() {
     $("#submit").click(function() {
         $("#chat-messages").append($("#chat").val());
         $("#chat-messages").append($("<br>"));
+    });
+
+    $("#r").click(function() {
+        guess("r");
+    });
+
+    $("#p").click(function() {
+        guess("p");
+    });
+
+    $("#s").click(function() {
+        guess("s");
+    });
+
+    function guess(choice) {
+        if(database.ref("/game/gameState") === true) {
+            if(isPlayer1) {
+                console.log("Guessed " + choice);
+                database.ref("/player1/player1Guess").set(choice);
+            } else if(isPlayer2) {
+                console.log("Guessed " + choice);
+                database.ref("/player2/player2Guess").set(choice);
+            } else {
+                console.log("You're a spectator. You can't guess!");
+            }
+        }
+    }
+
+    // When something changes in the DB, run this function
+    dbRef.on("value", function(snapshot) {
+        var items = snapshot.val();
+        console.log("Item changed");
+        
+        if(items[dbKeys[1]].gameState === true) {
+            // Player 1 has left. Player 2 (or any spectator) is responsible for cleaning up chat and resetting guesses.
+            if(items[dbKeys[2]].player1Joined === false) {
+                console.log("p1 left");
+                database.ref(dbKeys[2]).set({
+                    player1Joined: false,
+                    player1Guess: ""
+                });
+                database.ref("/player2/player2Guess").set("");
+            }
+
+            // Player 2 has left. Player 1 (or any spectator) is responsible for cleaning up chat and resetting guesses.
+            if(items[dbKeys[3]].player2Joined === false) {
+                console.log("p2 left");
+                database.ref(dbKeys[3]).set({
+                    player2Joined: false,
+                    player2Guess: ""
+                });
+                database.ref("/player1/player1Guess").set("");                
+            }
+        } else {
+
+        }
+        // If any errors are experienced, log them to console.
+    }, function(errorObject) {
+        console.log("The read failed: " + errorObject.code);
     });
 
     
