@@ -8,56 +8,77 @@ $(document).ready(function() {
     var dbRef = database.ref();
 
     dbRef.once("value", function(snapshot) {
-        var items = snapshot.val();
-
-        if(items[dbKeys[2]].player1Joined === false) {
-            console.log("p1 join");
-            database.ref(dbKeys[2]).set({
-                player1Joined: true,
-                player1Guess: "",
-                player1Points: 0
-            });
-            isPlayer1 = true;
-            if(items[dbKeys[3]].player2Joined === true) {
-                console.log("Game on");
-                database.ref("/game/gameState").set(true);
+        if(!isPlayer1 && !isPlayer2) {
+            var items = snapshot.val();
+            if(items[dbKeys[2]].player1Joined === false) {
+                console.log("p1 join");
+                database.ref(dbKeys[2]).set({
+                    player1Joined: true,
+                    player1Guess: "",
+                    player1Points: 0
+                });
+                isPlayer1 = true;
+                database.ref("/chatlog").set({
+                    msg0: "Player 1 joined the lobby."
+                });
+                database.ref("/chatInfo").set({
+                    numMessages: 0
+                });
+                if(items[dbKeys[3]].player2Joined === true) {
+                    console.log("Game on");
+                    database.ref("/game/gameState").set(true);
+                }
+            } else if(items[dbKeys[3]].player2Joined === false) {
+                console.log("p2 join");
+                database.ref(dbKeys[3]).set({
+                    player2Joined: true,
+                    player2Guess: "",
+                    player2Points: 0
+                });
+                isPlayer2 = true;
+                database.ref("/chatlog").set({
+                    msg0: "Player 2 joined the lobby."
+                });
+                database.ref("/chatInfo").set({
+                    numMessages: 0
+                });
+                if(items[dbKeys[2]].player1Joined === true) {
+                    console.log("Game on");
+                    database.ref("/game/gameState").set(true); 
+                }
             } else {
-                console.log("Player 2 isn't around. Game not started yet.");
+                console.log("The lobby is full right now. Try again later.");
             }
-        } else if(items[dbKeys[3]].player2Joined === false) {
-            console.log("p2 join");
-            database.ref(dbKeys[3]).set({
-                player2Joined: true,
-                player2Guess: "",
-                player2Points: 0
-            });
-            isPlayer2 = true;
-            if(items[dbKeys[2]].player1Joined === true) {
-                console.log("Game on");
-                database.ref("/game/gameState").set(true); 
-            } else {
-                console.log("Player 1 isn't around. Game not started yet.");
-            }
-        } else {
-            console.log("The lobby is full right now. Try again later.");
-        }
 
-        if(isPlayer1) {
-            var p1Ref = database.ref(dbKeys[2]);
-            p1Ref.onDisconnect().set({
-                player1Joined: false,
-                player1Guess: "",
-                player1Points: 0
-            });
-            database.ref("/game/gameState").onDisconnect().set(false);
-        } else if(isPlayer2) {
-            var p2Ref = database.ref(dbKeys[3]);
-            p2Ref.onDisconnect().set({
-                player2Joined: false,
-                player2Guess: "",
-                player2Points: 0
-            });
-            database.ref("/game/gameState").onDisconnect().set(false);
+            if(isPlayer1) {
+                var p1Ref = database.ref(dbKeys[2]);
+                p1Ref.onDisconnect().set({
+                    player1Joined: false,
+                    player1Guess: "",
+                    player1Points: 0
+                });
+                database.ref("/game/gameState").onDisconnect().set(false);
+                database.ref("/chatlog").onDisconnect().set({
+                    msg0: "Player 1 left the lobby."
+                });
+                database.ref("/chatInfo").set({
+                    numMessages: 0
+                });
+            } else if(isPlayer2) {
+                var p2Ref = database.ref(dbKeys[3]);
+                p2Ref.onDisconnect().set({
+                    player2Joined: false,
+                    player2Guess: "",
+                    player2Points: 0
+                });
+                database.ref("/game/gameState").onDisconnect().set(false);
+                database.ref("/chatlog").onDisconnect().set({
+                    msg0: "Player 2 left the lobby."
+                });
+                database.ref("/chatInfo").set({
+                    numMessages: 0
+                });
+            }
         }
         // If any errors are experienced, log them to console.
     }, function(errorObject) {
@@ -66,7 +87,6 @@ $(document).ready(function() {
 
     // Global Variables
     var lockedIn = true;
-    var lockedChat = false;
     var chatTotal = 0;
 
     var p1Points = 0;
@@ -92,8 +112,8 @@ $(document).ready(function() {
     scissorsNode.next = rockNode;
 
     $("#submit").click(function() {
-        $("#chat-messages").append($("#chat").val());
-        $("#chat-messages").append($("<br>"));
+        // $("#chat-messages").append($("#chat").val());
+        // $("#chat-messages").append($("<br>"));
         database.ref("/chatInfo/numMessages").set(chatTotal + 1);
         if(isPlayer1) {
             addMessage("Player 1: " + $("#chat").val());
@@ -149,7 +169,6 @@ $(document).ready(function() {
         
         console.log("Game State: " + items[dbKeys[1]].gameState);
         if(items[dbKeys[1]].gameState === true) {
-            lockedChat = false;
             if(isPlayer1 && items[dbKeys[2]].player1Guess === "") {
                 console.log("Can Guess");
                 lockedIn = false;
@@ -159,7 +178,6 @@ $(document).ready(function() {
                 console.log("Can Guess");
                 lockedIn = false;
             }
-
             chatTotal = items["chatInfo"].numMessages;
         } else {
             console.log("Something in the db changed, but the game state is currently not on.");
@@ -170,8 +188,8 @@ $(document).ready(function() {
         console.log("Is player 2 gone?");
         console.log(items[dbKeys[3]].player2Joined === false);
         
-        // Player 1 has left. Player 2 (or any spectator) is responsible for cleaning up chat and resetting guesses
-        if(items[dbKeys[2]].player1Joined === false) {
+        // Player 1 has left.
+        if(items[dbKeys[2]].player1Joined === false && isPlayer2) {
             console.log("p1 left");
             database.ref(dbKeys[3]).set({
                 player2Joined: true,
@@ -179,33 +197,34 @@ $(document).ready(function() {
                 player2Points: 0
             });
             lockedIn = true;
-            lockedChat = true;
             chatTotal = 0;
-            database.ref("/chatlog").set({
-                msg0: "Player 1 left the lobby."
-            });
-            database.ref("/chatInfo").set({
-                numMessages: 0
-            });
         }
 
-        // Player 2 has left. Player 1 (or any spectator) is responsible for cleaning up chat and resetting guesses.
-        if(items[dbKeys[3]].player2Joined === false) {
+        // Player 2 has left.
+        if(items[dbKeys[3]].player2Joined === false && isPlayer1) {
             console.log("p2 left");
             database.ref(dbKeys[2]).set({
                 player1Joined: true,
                 player1Guess: "",
                 player1Points: 0
             });
-            lockedChat = true;
             lockedIn = true;
             chatTotal = 0;
-            database.ref("/chatlog").set({
-                msg0: "Player 2 left the lobby."
-            });
-            database.ref("/chatInfo").set({
-                numMessages: 0
-            });
+        }
+
+        if(items[dbKeys[3]].player2Joined === false && !isPlayer1 || items[dbKeys[2]].player1Joined === false && !isPlayer2) {
+            chatTotal = 0;
+        }
+
+        $("#chat-messages").empty();
+        for(var i = 0; i <= chatTotal; i++) {
+            var messageArr = Object.values(items["chatlog"]);
+            console.log(messageArr);
+            $("#chat-messages").append("<span>" + messageArr[i] + "</span>");
+            $("#chat-messages").append($("<br>"));
+
+            // !!!!TODO!!!! Look into issue where FB adds messages in an unfortunate way. (10 - 19 appended after 1, et cetera)
+
         }
         // If any errors are experienced, log them to console.
     }, function(errorObject) {
