@@ -64,6 +64,7 @@ $(document).ready(function() {
                 database.ref("/chatInfo").set({
                     numMessages: 0
                 });
+                $("#player").text("You are Player 1!");
             } else if(isPlayer2) {
                 var p2Ref = database.ref(dbKeys[3]);
                 p2Ref.onDisconnect().set({
@@ -78,6 +79,9 @@ $(document).ready(function() {
                 database.ref("/chatInfo").set({
                     numMessages: 0
                 });
+                $("#player").text("You are Player 2!");
+            } else {
+                $("#player").text("You are spectating! (Lobby is full)");
             }
         }
         // If any errors are experienced, log them to console.
@@ -88,10 +92,6 @@ $(document).ready(function() {
     // Global Variables
     var lockedIn = true;
     var chatTotal = 0;
-
-    var p1Points = 0;
-    var p2Points = 0;
-    var ties = 0;
 
     // Node object for RPS Linked List
     class Node { 
@@ -139,20 +139,27 @@ $(document).ready(function() {
     function guess(choice) {
         if(!lockedIn) {
             if(isPlayer1) {
-                guessHelper(choice, 1);
+                guessHelper(choice);
             } else if(isPlayer2) {
-                guessHelper(choice, 2);
+                guessHelper(choice);
             } else {
                 console.log("You're a spectator. You can't guess!");
             }
         }
     }
 
-    function guessHelper(choice, player) {
-        if(player === 1) {
+    function guessHelper(choice) {
+        var newImage = $("<img src='assets/images/" + choice + ".png' alt='Player Guess' class='player-choice'/>");
+        if(isPlayer1) {
             database.ref("/player1/player1Guess").set(choice);
+            newImage.attr("id", "player-1-choice");
+            $("#player-1-choice").remove();
+            $("#p1-guess").append(newImage);
         } else {
             database.ref("/player2/player2Guess").set(choice);
+            newImage.attr("id", "player-2-choice");
+            $("#player-2-choice").remove();
+            $("#p2-guess").append(newImage);
         }
         lockedIn = true;
     }
@@ -160,6 +167,28 @@ $(document).ready(function() {
     function addMessage(message) {
         var referenceStr = "/chatlog/msg" + (chatTotal);
         database.ref(referenceStr).set(message);
+    }
+
+    function gameOver(winner) {
+        if(winner === 1) {
+            if(isPlayer1) {
+                console.log("You win!");
+            } else if(isPlayer2) {
+                console.log("You lose...");
+            } else {
+                console.log("Player 1 wins!");
+            }
+        } else if(winner === 2){
+            if(isPlayer1) {
+                console.log("You lose...");
+            } else if(isPlayer2) {
+                console.log("You win!");
+            } else {
+                console.log("Player 2 wins!");
+            }
+        } else {
+            console.log("It's a draw!");
+        }
     }
 
     // When something changes in the DB, run this function
@@ -170,27 +199,58 @@ $(document).ready(function() {
         console.log("Game State: " + items[dbKeys[1]].gameState);
         if(items[dbKeys[1]].gameState === true) {
             if(isPlayer1 && items[dbKeys[2]].player1Guess === "") {
-                console.log("Can Guess");
+                console.log("Player 1 can Guess");
                 lockedIn = false;
             }
 
             if(isPlayer2 && items[dbKeys[3]].player2Guess === "") {
-                console.log("Can Guess");
+                console.log("Player 2 can Guess");
                 lockedIn = false;
             }
             chatTotal = items["chatInfo"].numMessages;
-        } else {
-            console.log("Something in the db changed, but the game state is currently not on.");
-        }
 
-        console.log("Is player 1 gone?");
-        console.log(items[dbKeys[2]].player1Joined === false);
-        console.log("Is player 2 gone?");
-        console.log(items[dbKeys[3]].player2Joined === false);
+            // Handler for when both players have guessed
+            if(items[dbKeys[2]].player1Guess !== "" && items[dbKeys[3]].player2Guess !== "") {
+                // Assign users' guesses to one of the RPS ListNodes
+                var oneNode = null;
+                if(items[dbKeys[2]].player1Guess === "r") {
+                    oneNode = rockNode;
+                } else if(items[dbKeys[2]].player1Guess === "p") {
+                    oneNode = paperNode;
+                } else {
+                    oneNode = scissorsNode;
+                }
+
+                var twoNode = null;
+                if(items[dbKeys[3]].player2Guess === "r") {
+                    twoNode = rockNode;
+                } else if(items[dbKeys[3]].player2Guess === "p") {
+                    twoNode = paperNode;
+                } else {
+                    twoNode = scissorsNode;
+                }
+
+                $("#player-1-choice").remove();
+                $("#player-2-choice").remove();
+                var newImage1 = $("<img src='assets/images/" + oneNode.element.substring(0, 1) + ".png' alt='Player Guess' class='player-choice' id='player-1-choice'/>");
+                var newImage2 = $("<img src='assets/images/" + twoNode.element.substring(0, 1) + ".png' alt='Player Guess' class='player-choice' id='player-2-choice'/>");
+                $("#p1-guess").append(newImage1);
+                $("#p2-guess").append(newImage2);
+
+                // Compare guesses using ListNode links
+                if(oneNode.element === twoNode.element) {
+                    gameOver(0);
+                } else if(oneNode.next.element === twoNode.element) {
+                    gameOver(2);
+                } else if(twoNode.next.element === oneNode.element) {
+                    gameOver(1);
+                }
+            }
+        }
         
         // Player 1 has left.
         if(items[dbKeys[2]].player1Joined === false && isPlayer2) {
-            console.log("p1 left");
+            console.log("p1 is not here");
             database.ref(dbKeys[3]).set({
                 player2Joined: true,
                 player2Guess: "",
@@ -198,11 +258,12 @@ $(document).ready(function() {
             });
             lockedIn = true;
             chatTotal = 0;
+            $(".player-choice").remove();
         }
 
         // Player 2 has left.
         if(items[dbKeys[3]].player2Joined === false && isPlayer1) {
-            console.log("p2 left");
+            console.log("p2 is not here");
             database.ref(dbKeys[2]).set({
                 player1Joined: true,
                 player1Guess: "",
@@ -210,16 +271,18 @@ $(document).ready(function() {
             });
             lockedIn = true;
             chatTotal = 0;
+            $(".player-choice").remove();
         }
 
         if(items[dbKeys[3]].player2Joined === false && !isPlayer1 || items[dbKeys[2]].player1Joined === false && !isPlayer2) {
             chatTotal = 0;
+            $(".player-choice").remove();
         }
 
         $("#chat-messages").empty();
         for(var i = 0; i <= chatTotal; i++) {
             var messageArr = Object.values(items["chatlog"]);
-            console.log(messageArr);
+            // console.log(messageArr);
             $("#chat-messages").append("<span>" + messageArr[i] + "</span>");
             $("#chat-messages").append($("<br>"));
 
@@ -230,79 +293,4 @@ $(document).ready(function() {
     }, function(errorObject) {
         console.log("The read failed: " + errorObject.code);
     });
-
-    
-    /*
-    while(gameState) {
-    var valid = false;
-    var p1HasGuessed = false;
-    while(!valid) {
-        oneGuess = prompt("Player 1, please guess r, p, or s");
-        // Check if user entered r, p, or s
-        if(validChoices.indexOf(oneGuess) === -1) {
-        alert("That's not a valid choice. Pick r, p, or s")
-        } else {
-        valid = true;
-        }
-    }
-    // Assign user's guess to one of the RPS ListNodes
-    var oneNode = null;
-    if(oneGuess === "r") {
-        oneNode = rockNode;
-    } else if(oneGuess === "p") {
-        oneNode = paperNode;
-    } else {
-        oneNode = scissorsNode;
-    }
-
-    // Begin Player 2's turn
-    valid = false;
-    while(!valid) {
-        twoGuess = prompt("Player 2, please guess r, p, or s");
-        //Check if user entered r, p, or s
-        if(validChoices.indexOf(twoGuess) === -1) {
-        alert("That's not a valid choice. Pick r, p, or s")
-        } else {
-        valid = true;
-        }
-    }
-    // Assign user's guess to one of the RPS ListNodes
-    var twoNode = null;
-    if(twoGuess === "r") {
-        twoNode = rockNode;
-    } else if(twoGuess === "p") {
-        twoNode = paperNode;
-    } else {
-        twoNode = scissorsNode;
-    }
-    
-    // Compare guesses using ListNode links
-    if(oneGuess === twoGuess) {
-        ties++;
-        alert("Looks like a tie!");
-    } else if(oneNode.next.element === twoNode.element) {
-        p2Points++;
-        alert("Player 2 wins! They have " + p2Points + " points!");
-    } else if(twoNode.next.element === oneNode.element) {
-        p1Points++;
-        alert("Player 1 wins! They have " + p1Points + " points!");
-    }
-    // Print statistics
-    if(!confirm("Would you like to play again?")) {
-        document.write("Thank you for playing!" + "<br>");
-        document.write("Final Scores:" + "<br>");
-        document.write("Player 1: " + p1Points + "<br>");
-        document.write("Player 2: " + p2Points + "<br>");
-        document.write("Total ties: " + ties + "<br>");
-        if(p1Points > p2Points) {
-        document.write("Player 1 wins overall!");
-        } else if(p2Points > p1Points) {
-        document.write("Player 2 wins overall!");
-        } else {
-        document.write("It's a draw overall!");
-        }
-        gameState = false;
-    }
-    }
-    */
 });

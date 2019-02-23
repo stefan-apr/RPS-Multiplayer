@@ -36,11 +36,28 @@
                 
                 <div class="col-9" id="game-interface">
                     <div class="card">
-                        <div class="card-header"><h3 class="card-title">Game:</h3></div>
+                        <div class="card-header"><h3 class="card-title" id="player"></h3></div>
                         <div class="card-body">
-                           <img src="assets/images/r.png" alt="rock" id="r"/>
-                           <img src="assets/images/p.png" alt="paper" id="p"/>
-                           <img src="assets/images/s.png" alt="scissors" id="s"/>
+                            <div class="guess-buttons">
+                                <figure id="r">
+                                    <img src="assets/images/r.png" alt="rock"/>
+                                    <figcaption>Stone</figcaption>
+                                </figure>
+                                <figure id="p">
+                                    <img src="assets/images/p.png" alt="paper"/>
+                                    <figcaption>Sheet</figcaption>
+                                </figure>
+                                <figure id="s">
+                                    <img src="assets/images/s.png" alt="scissors"/>
+                                    <figcaption>Clippers</figcaption>
+                                </figure>
+                            </div>
+                            <figure class="player-guess" id="p1-guess">
+                                <figcaption>Player 1's Guess</figcaption>
+                            </figure>
+                            <figure class="player-guess" id="p2-guess">
+                                <figcaption>Player 2's Guess</figcaption>
+                            </figure>
                         </div>
                     </div>
                 </div>
