@@ -211,6 +211,10 @@ $(document).ready(function() {
 
             // Handler for when both players have guessed
             if(items[dbKeys[2]].player1Guess !== "" && items[dbKeys[3]].player2Guess !== "") {
+
+                items[dbKeys[1]].gameState = false;
+
+                $("#submit").attr("disabled", "disabled");
                 // Assign users' guesses to one of the RPS ListNodes
                 var oneNode = null;
                 if(items[dbKeys[2]].player1Guess === "r") {
@@ -245,6 +249,12 @@ $(document).ready(function() {
                 } else if(twoNode.next.element === oneNode.element) {
                     gameOver(1);
                 }
+
+                // !!!!!!!TODO!!!!!!! 
+                // Print "You Win/You Lose/Player Wins"
+                // Update Wins/Losses tally
+                
+                waitAndReset();
             }
         }
         
@@ -280,17 +290,31 @@ $(document).ready(function() {
         }
 
         $("#chat-messages").empty();
-        for(var i = 0; i <= chatTotal; i++) {
-            var messageArr = Object.values(items["chatlog"]);
-            // console.log(messageArr);
-            $("#chat-messages").append("<span>" + messageArr[i] + "</span>");
+        for(var i = 0; i <= chatTotal; i++) {           
+            var key = "msg" + i;
+            var message = items["chatlog"][key];
+            
+            $("#chat-messages").append("<span>" + message + "</span>");
             $("#chat-messages").append($("<br>"));
-
-            // !!!!TODO!!!! Look into issue where FB adds messages in an unfortunate way. (10 - 19 appended after 1, et cetera)
-
         }
         // If any errors are experienced, log them to console.
     }, function(errorObject) {
         console.log("The read failed: " + errorObject.code);
     });
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    async function waitAndReset() {
+        await sleep(5000);
+        console.log("After 5 seconds.");
+
+        // Reset the game
+        lockedIn = false;
+        $(".player-choice").remove();
+        database.ref("/game/gameState").set(true);
+        database.ref("/player1/player1Guess").set("");
+        database.ref("/player2/player2Guess").set("");
+    }
 });
